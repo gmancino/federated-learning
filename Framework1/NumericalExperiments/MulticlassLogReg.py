@@ -1,6 +1,9 @@
+# Import necessary packages
+
 import numpy as np
 
 
+# Define class that solves regularized logistic regression problem with gradient descent
 class MulticlassLogReg():
 
     def __init__(self, x, y, w0, b0, alpha, T, tol, lam1, lam2, num_classes):
@@ -47,7 +50,7 @@ class MulticlassLogReg():
         probs = self.softmax(scores)
 
         # Frobenius norm loss
-        loss = (-1/N) * np.sum(yhat * np.log(probs)) + (lam1/2)*np.linalg.norm(w, ord='fro')**2 + (lam2/2) * np.linalg.norm(b, ord='fro')**2
+        loss = (-1/N) * np.sum(yhat * np.log(probs)) + (lam1/2)*np.linalg.norm(w, ord='fro')**2 + (lam2/2) * np.linalg.norm(b, ord=2)**2
 
         gradw = (-1/N) * np.dot(x.T,(yhat - probs)) + lam1*w
         gradb = (-1/N) * (yhat - probs) + lam2*b
