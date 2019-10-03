@@ -1,41 +1,78 @@
+import numpy as np
+import math
+import torch
+import torchvision
+import matplotlib.pyplot as plt
+from MulticlassLogReg import MulticlassLogReg
+from CreateAgents import CreateAgents
+from sklearn.datasets import load_svmlight_file
 
-# Find "true" parameters by training on a majority of the data
-[w_true, loss_hist] = multiclass_log_reg(x[0:50000, :], y[0:50000], 10, 0.25, 1, 1000)
+# Load data for problem
+print('[INFO] Loading data...')
+x, y = load_svmlight_file("../../../../../Data/mnist")
+x = x.todense()
 
-# Train on just a subset to see how w changes based on number of data points
-[w_i, loss_hist_i] = multiclass_log_reg(x_train_agents[0], y_train_agents[:, 0], 10, 0.25, 1, 1000)
-print(la.norm(w_i - w_true, ord='fro'))
+# Normalize data
+x = np.array(x) / np.max(x)
 
-#y_corrupt = np.random.randint(10, size=len(y_train_agents[:, 0]))
-#y_corrupt = np.zeros(len(y_train_agents))
-y_corrupt_ind = np.random.randint(len(y_test), size=math.floor(len(y_test)))
-corruptions = np.random.randint(10, size=len(y_corrupt_ind))
-y_corrupt = y_test.copy()
-y_corrupt[y_corrupt_ind] = corruptions
+# Fix our data to make square bois
+concat = np.zeros((x.shape[0], 4))
+x = np.append(x, concat, axis=1)
 
-[w_c, loss_hist_c] = multiclass_log_reg(x_test, y_corrupt, 10, 0.25, 1, 1000)
-print(la.norm(w_c - w_true, ord='fro')/la.norm(w_true, ord='fro'))
+train_data = x[0:50000, :]
+test_data = x[50000:60000, :]
+train_label = y[0:50000]
+test_label = y[50000:60000]
+
+# Run multiclass logistic regression to get "w_true"
+all_data_train = MulticlassLogReg(train_data, train_label, np.random.rand(train_data.shape[1], 10), np.random.rand(10), T=1000, tol=0.5, alpha=0.25, lam1=1e-3, lam2=0.1, num_classes=10)
+all_data_train.optimization()
+
+pred, prob = all_data_train.predict(test_data, all_data_train.w, all_data_train.b)
+
+print('Accuracy: ', sum(pred == test_label)/len(pred))
+
+# Save "true" values for comparison
+w_true = all_data_train.w
+b_true = all_data_train.b
+b_true_mean = b_true - np.mean(b_true)
+
+w_true = np.concatenate((w_true, np.array([b_true_mean])), axis=0)
 
 w_seq = []
 corruptions_seq = []
+accuracy = []
+num_test = 1000
 
-for i in range(1, 16):
+for i in range(1, 31):
 
-    y_corrupt_ind = np.random.randint(len(y_test[0:1000]), size=math.floor((i * 0.01) * len(y_test[0:1000])))
+    y_corrupt_ind = np.random.randint(len(test_label[0:num_test]), size=math.floor((i * 0.01) * len(test_label[0:num_test])))
     corruptions = np.random.randint(10, size=len(y_corrupt_ind))
-    y_corrupt = y_test[0:1000].copy()
+    y_corrupt = test_label[0:num_test].copy()
     y_corrupt[y_corrupt_ind] = corruptions
 
-    [w, l] = multiclass_log_reg(x_test[0:1000], y_corrupt, 10, 0.25, 1, 1000)
+    corruption_log_reg = MulticlassLogReg(test_data[0:num_test], y_corrupt, np.random.rand(test_data.shape[1], 10), np.random.rand(10), T=1000, tol=0.5, alpha=0.25, lam1=1, lam2=1, num_classes=10)
+    corruption_log_reg.optimization()
 
-    norm = la.norm(w - w_true, ord='fro')/la.norm(w_true, ord='fro')
+    w = np.concatenate((corruption_log_reg.w, np.array([corruption_log_reg.b - np.mean(corruption_log_reg.b)])), axis=0)
+
+    norm = np.linalg.norm(w - w_true, ord='fro')/np.linalg.norm(w_true, ord='fro')
+
+    pred, prob = all_data_train.predict(test_data[0:num_test], corruption_log_reg.w, corruption_log_reg.b)
+
+    acc = sum(pred == test_label[0:num_test]) / len(pred)
 
     corruptions_seq.append(i * 0.01)
     w_seq.append(norm)
+    accuracy.append(acc)
 
 
-fig = plt.figure()
+plt.subplot(211)
 plt.plot(corruptions_seq, w_seq)
-plt.title(str(len(y_test[0:1000])) + ' data points')
-plt.xlabel('Percent corruptions')
+plt.title(str(len(test_label[0:num_test])) + ' data points on MNIST data')
 plt.ylabel('||w_c-w_true||_F/||w_true||_F')
+plt.subplot(212)
+plt.plot(corruptions_seq, accuracy)
+plt.ylabel('Classification accuracy')
+plt.xlabel('Corruption percentages')
+plt.show()

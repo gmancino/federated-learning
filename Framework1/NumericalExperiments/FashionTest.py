@@ -45,9 +45,9 @@ w_true = np.concatenate((w_true, np.array([b_true])), axis=0)
 w_seq = []
 corruptions_seq = []
 accuracy = []
-num_test = 100
+num_test = 10000
 
-for i in range(1, 21):
+for i in range(90, 91):
 
     y_corrupt_ind = np.random.randint(len(test_label[0:num_test]), size=math.floor((i * 0.01) * len(test_label[0:num_test])))
     corruptions = np.random.randint(10, size=len(y_corrupt_ind))
