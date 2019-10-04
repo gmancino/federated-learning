@@ -1,11 +1,37 @@
+# ----------------------------------
+# Multiclass Prediction via Logistic Regression
+#
+# This class uses gradient descent to solve
+# a multiclass logistic regression problem
+#
+# Author: Gabe Mancino
+# ----------------------------------
+
 # Import necessary packages
 
 import numpy as np
 
 
-# Define class that solves regularized logistic regression problem with gradient descent
-class MulticlassLogReg():
+class MulticlassLogReg:
+    '''
+    INPUTS:
+    x = Data matrix with ith data point as ith row
+    y = Label vector with ith label in ith row
+    w0 = Initial guess for weight matrix
+    b0 = Initial guess for shift vector
+    alpha = Constant stepsize (should be less than 0.25, I think?)
+    T = Max iterations
+    tol = Stopping tolerance (difference in previous loss to new loss)
+    [lam1, lam2] = Regularization parameters for w and b, respectively
+    num_classes = Number of classes for prediction
 
+    OUTPUTS:
+    losses = Vector of losses from each iteration
+    w = "Optimal" w
+    b = "Optimal" b
+    '''
+
+    # Initialize class with appropriate data and starting parameters
     def __init__(self, x, y, w0, b0, alpha, T, tol, lam1, lam2, num_classes):
         self.x = x
         self.y = y
@@ -20,17 +46,20 @@ class MulticlassLogReg():
         self.num_classes = num_classes
         self.losses = []
 
+    # Define softmax function for computing class probabilities
     def softmax(self, z):
         # Subtract max for numerical stability
         z -= np.max(z)
         sm = (np.exp(z).T / np.sum(np.exp(z), axis=1)).T
         return sm
 
+    # Define prediction function to make life easier
     def predict(self, x, w, b):
         probability = self.softmax(np.dot(x, w) + b)
         prediction = np.argmax(probability, axis=1)
         return [prediction, probability]
 
+    # One hot encoding to turn label vector in label matrix
     def one_hot_encoding(self, y, num_classes):
         ln = len(y)
         y = y.astype(int)
@@ -39,6 +68,7 @@ class MulticlassLogReg():
             Y[i, y[i]] = 1
         return Y
 
+    # Cross entropy loss function
     def Loss(self, probs, yhat, w, b, lam1, lam2):
         N = probs.shape[0]
 
@@ -46,6 +76,7 @@ class MulticlassLogReg():
                     lam2 / 2) * np.linalg.norm(b, ord=2) ** 2
         return loss
 
+    # Define gradient with respect to w and b
     def grad(self, x, y, w, b, lam1, lam2, num_classes):
 
         # Encode data into matrix
@@ -64,6 +95,7 @@ class MulticlassLogReg():
 
         return [gradw, gradb, loss]
 
+    # Perform gradient descent with fixed stepsize
     def grad_descent(self):
 
         loss = 1
