@@ -33,7 +33,7 @@ b0 = np.random.rand(10)
 
 # Run multiclass logistic regression to get "w_true"
 all_data_train = MulticlassLogReg(train_data, train_label, w0, b0, T=1000, tol=0.5, alpha=0.25, lam1=1e-3, lam2=0.1, num_classes=10)
-all_data_train.optimization()
+all_data_train.grad_descent()
 
 pred, prob = all_data_train.predict(test_data, all_data_train.w, all_data_train.b)
 
@@ -59,7 +59,7 @@ for i in range(1, 16):
     y_corrupt[y_corrupt_ind] = corruptions
 
     corruption_log_reg = MulticlassLogReg(test_data[0:num_test], y_corrupt, w0, b0, T=1000, tol=0.5, alpha=0.25, lam1=1e-3, lam2=0.1, num_classes=10)
-    corruption_log_reg.optimization()
+    corruption_log_reg.grad_descent()
 
     w = np.concatenate((corruption_log_reg.w, np.array([corruption_log_reg.b - np.mean(corruption_log_reg.b)])), axis=0)
 
