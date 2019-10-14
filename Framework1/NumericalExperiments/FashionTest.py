@@ -5,6 +5,7 @@ import torchvision
 import matplotlib.pyplot as plt
 from MulticlassLogReg import MulticlassLogReg
 from CreateAgents import CreateAgents
+from sklearn.linear_model import LogisticRegression
 
 # Import Data using pytorch
 transform = torchvision.transforms.Compose([torchvision.transforms.ToTensor()])
@@ -27,24 +28,29 @@ for i in range(50000):
 for i in range(10000):
     test_data[i, :] = x_data[50000 + i][0].flatten()
 
+sk = LogisticRegression(random_state=0, solver='lbfgs', multi_class='multinomial', max_iter=1000).fit(train_data, train_label)
+w_true = sk.coef_
+b_true = sk.intercept_
 
-w0 = np.random.rand(train_data.shape[1], 10)
-b0 = np.random.rand(10)
+w_true = np.concatenate((w_true.T, np.array([b_true])))
+
+#w0 = np.random.rand(train_data.shape[1], 10)
+#b0 = np.random.rand(10)
 
 # Run multiclass logistic regression to get "w_true"
-all_data_train = MulticlassLogReg(train_data, train_label, w0, b0, T=1000, tol=0.5, alpha=0.25, lam1=1e-3, lam2=0.1, num_classes=10)
-all_data_train.grad_descent()
+#all_data_train = MulticlassLogReg(train_data, train_label, w0, b0, T=1000, tol=0.5, alpha=0.25, lam1=1e-3, lam2=0.1, num_classes=10)
+#all_data_train.grad_descent()
 
-pred, prob = all_data_train.predict(test_data, all_data_train.w, all_data_train.b)
+#pred, prob = all_data_train.predict(test_data, all_data_train.w, all_data_train.b)
 
-print('Accuracy: ', sum(pred == test_label)/len(pred))
+#print('Accuracy: ', sum(pred == test_label)/len(pred))
 
 # Save "true" values for comparison
-w_true = all_data_train.w
-b_true = all_data_train.b
-b_true_mean = b_true - np.mean(b_true)
+#w_true = all_data_train.w
+#b_true = all_data_train.b
+#b_true_mean = b_true - np.mean(b_true)
 
-w_true = np.concatenate((w_true, np.array([b_true_mean])), axis=0)
+#w_true = np.concatenate((w_true, np.array([b_true_mean])), axis=0)
 
 w_seq = []
 corruptions_seq = []
@@ -58,14 +64,24 @@ for i in range(1, 16):
     y_corrupt = test_label[0:num_test].copy()
     y_corrupt[y_corrupt_ind] = corruptions
 
-    corruption_log_reg = MulticlassLogReg(test_data[0:num_test], y_corrupt, w0, b0, T=1000, tol=0.5, alpha=0.25, lam1=1e-3, lam2=0.1, num_classes=10)
-    corruption_log_reg.grad_descent()
+    #corruption_log_reg = MulticlassLogReg(test_data[0:num_test], y_corrupt, w0, b0, T=1000, tol=0.5, alpha=0.25, lam1=1e-3, lam2=0.1, num_classes=10)
+    #corruption_log_reg.grad_descent()
 
-    w = np.concatenate((corruption_log_reg.w, np.array([corruption_log_reg.b - np.mean(corruption_log_reg.b)])), axis=0)
+    #w = np.concatenate((corruption_log_reg.w, np.array([corruption_log_reg.b - np.mean(corruption_log_reg.b)])), axis=0)
+
+    sk = LogisticRegression(random_state=0, solver='lbfgs', multi_class='multinomial', max_iter=1000).fit(test_data[0:num_test], y_corrupt)
+    w = sk.coef_
+    b = sk.intercept_
+
+    w = np.concatenate((w.T, np.array([b])))
 
     norm = np.linalg.norm(w - w_true, ord='fro')/np.linalg.norm(w_true, ord='fro')
 
-    pred, prob = all_data_train.predict(test_data[0:num_test], corruption_log_reg.w, corruption_log_reg.b)
+    pred = sk.predict(test_data[0:num_test])
+
+    norm = np.linalg.norm(w - w_true, ord='fro')/np.linalg.norm(w_true, ord='fro')
+
+    #pred, prob = all_data_train.predict(test_data[0:num_test], corruption_log_reg.w, corruption_log_reg.b)
 
     acc = sum(pred == test_label[0:num_test]) / len(pred)
 

@@ -3,9 +3,11 @@ import math
 import torch
 import torchvision
 import matplotlib.pyplot as plt
-from MulticlassLogReg import MulticlassLogReg
-from CreateAgents import CreateAgents
+
+#from MulticlassLogReg import MulticlassLogReg
+#from CreateAgents import CreateAgents
 from sklearn.datasets import load_svmlight_file
+from sklearn.linear_model import LogisticRegression
 
 # Load data for problem
 print('[INFO] Loading data...')
@@ -24,29 +26,35 @@ test_data = x[50000:60000, :]
 train_label = y[0:50000]
 test_label = y[50000:60000]
 
-w0 = np.random.rand(x.shape[1], 10)
-b0 = np.random.rand(10)
-params = {"w0": w0, "b0": b0, "T": 1000, "tol": 1e-2, "alpha": 0.25, "lam1": 1e-3, "lam2": 0.1, "num_classes": 10}
+sk = LogisticRegression(random_state=0, solver='lbfgs', multi_class='multinomial', max_iter=1000).fit(train_data, train_label)
+w_true = sk.coef_
+b_true = sk.intercept_
+
+w_true = np.concatenate((w_true.T, np.array([b_true])))
+
+#w0 = np.random.rand(x.shape[1], 10)
+#b0 = np.random.rand(10)
+#params = {"w0": w0, "b0": b0, "T": 1000, "tol": 1e-2, "alpha": 0.25, "lam1": 1e-3, "lam2": 0.1, "num_classes": 10}
 
 # Run multiclass logistic regression to get "w_true"
-all_data_train = MulticlassLogReg(train_data, train_label, params['w0'], params['b0'], T=params['T'], tol=params['tol'],
-                                  alpha=params['alpha'], lam1=params['lam1'],
-                                  lam2=params['lam2'], num_classes=params['num_classes'])
-all_data_train.grad_descent()
-pred, prob = all_data_train.predict(test_data, all_data_train.w, all_data_train.b)
-print('Accuracy: ', sum(pred == test_label)/len(pred))
+#all_data_train = MulticlassLogReg(train_data, train_label, params['w0'], params['b0'], T=params['T'], tol=params['tol'],
+#                                  alpha=params['alpha'], lam1=params['lam1'],
+#                                  lam2=params['lam2'], num_classes=params['num_classes'])
+#all_data_train.grad_descent()
+#pred, prob = all_data_train.predict(test_data, all_data_train.w, all_data_train.b)
+#print('Accuracy: ', sum(pred == test_label)/len(pred))
 
 # Save "true" values for comparison
-w_true = all_data_train.w
-b_true = all_data_train.b
-b_true_mean = b_true - np.mean(b_true)
+#w_true = all_data_train.w
+#b_true = all_data_train.b
+#b_true_mean = b_true - np.mean(b_true)
 
-w_true = np.concatenate((w_true, np.array([b_true_mean])), axis=0)
+#w_true = np.concatenate((w_true, np.array([b_true_mean])), axis=0)
 
 w_seq = []
 corruptions_seq = []
 accuracy = []
-num_test = 10
+num_test = 10000
 
 for i in range(1, 21):
 
@@ -55,16 +63,23 @@ for i in range(1, 21):
     y_corrupt = test_label[0:num_test].copy()
     y_corrupt[y_corrupt_ind] = corruptions
 
-    corruption_log_reg = MulticlassLogReg(test_data[0:num_test], y_corrupt, params['w0'], params['b0'], T=params['T'], tol=params['tol'],
-                                  alpha=params['alpha'], lam1=params['lam1'],
-                                  lam2=params['lam2'], num_classes=params['num_classes'])
-    corruption_log_reg.grad_descent()
+    #corruption_log_reg = MulticlassLogReg(test_data[0:num_test], y_corrupt, params['w0'], params['b0'], T=params['T'], tol=params['tol'],
+    #                              alpha=params['alpha'], lam1=params['lam1'],
+    #                              lam2=params['lam2'], num_classes=params['num_classes'])
+    #corruption_log_reg.grad_descent()
 
-    w = np.concatenate((corruption_log_reg.w, np.array([corruption_log_reg.b - np.mean(corruption_log_reg.b)])), axis=0)
+    #w = np.concatenate((corruption_log_reg.w, np.array([corruption_log_reg.b - np.mean(corruption_log_reg.b)])), axis=0)
+    sk = LogisticRegression(random_state=0, solver='lbfgs', multi_class='multinomial', max_iter=1000).fit(test_data[0:num_test], y_corrupt)
+    w = sk.coef_
+    b = sk.intercept_
+
+    w = np.concatenate((w.T, np.array([b])))
 
     norm = np.linalg.norm(w - w_true, ord='fro')/np.linalg.norm(w_true, ord='fro')
 
-    pred, prob = all_data_train.predict(test_data[0:num_test], corruption_log_reg.w, corruption_log_reg.b)
+    pred = sk.predict(test_data[0:num_test])
+
+    #pred, prob = all_data_train.predict(test_data[0:num_test], corruption_log_reg.w, corruption_log_reg.b)
 
     acc = sum(pred == test_label[0:num_test]) / len(pred)
 
